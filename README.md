@@ -6,6 +6,8 @@ For users in Mainland China, it is recommended to use the Tencent `cnb.cool` mir
 
 
 
+> Developers: the design guide for the plugin starts at [docs/atlas/README.md](docs/atlas/README.md).
+
 <h1 align="center">Fast Note Sync For Obsidian</h1>
 
 <p align="center">
