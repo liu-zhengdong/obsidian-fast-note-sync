@@ -1,8 +1,8 @@
-[简体中文](https://github.com/haierkeys/obsidian-fast-note-sync/blob/master/docs/README.zh-CN.md) / [English](https://github.com/haierkeys/obsidian-fast-note-sync/blob/master/README.md) / [日本語](https://github.com/haierkeys/obsidian-fast-note-sync/blob/master/docs/README.ja.md) / [한국어](https://github.com/haierkeys/obsidian-fast-note-sync/blob/master/docs/README.ko.md) / [繁體中文](https://github.com/haierkeys/obsidian-fast-note-sync/blob/master/docs/README.zh-TW.md)
+[简体中文](https://github.com/liu-zhengdong/obsidian-fast-note-sync/blob/master/docs/README.zh-CN.md) / [English](https://github.com/liu-zhengdong/obsidian-fast-note-sync/blob/master/README.md) / [日本語](https://github.com/liu-zhengdong/obsidian-fast-note-sync/blob/master/docs/README.ja.md) / [한국어](https://github.com/liu-zhengdong/obsidian-fast-note-sync/blob/master/docs/README.ko.md) / [繁體中文](https://github.com/liu-zhengdong/obsidian-fast-note-sync/blob/master/docs/README.zh-TW.md)
 
-If you have any questions, please create a new [issue](https://github.com/haierkeys/obsidian-fast-note-sync/issues/new), or join the Telegram group for help: [https://t.me/obsidian_users](https://t.me/obsidian_users)
+If you have any questions, please create a new [issue](https://github.com/liu-zhengdong/obsidian-fast-note-sync/issues/new).
 
-For users in Mainland China, it is recommended to use the Tencent `cnb.cool` mirror: [https://cnb.cool/haierkeys/obsidian-fast-note-sync](https://cnb.cool/haierkeys/obsidian-fast-note-sync)
+This repository is forked from [haierkeys/obsidian-fast-note-sync](https://github.com/haierkeys/obsidian-fast-note-sync). The upstream is no longer maintained; the plugin itself is still installed from the upstream releases.
 
 
 
@@ -12,8 +12,7 @@ For users in Mainland China, it is recommended to use the Tencent `cnb.cool` mir
 
 <p align="center">
     <a href="https://github.com/haierkeys/obsidian-fast-note-sync/releases"><img src="https://img.shields.io/github/release/haierkeys/obsidian-fast-note-sync?style=flat-square" alt="release"></a>
-    <a href="https://github.com/haierkeys/obsidian-fast-note-sync/releases"><img src="https://img.shields.io/github/v/tag/haierkeys/obsidian-fast-note-sync?label=release-alpha&style=flat-square" alt="alpha-release"></a>
-    <a href="https://github.com/haierkeys/obsidian-fast-note-sync/blob/master/LICENSE"><img src="https://img.shields.io/github/license/haierkeys/obsidian-fast-note-sync?style=flat-square" alt="license"></a>
+    <a href="https://github.com/liu-zhengdong/obsidian-fast-note-sync/blob/master/LICENSE"><img src="https://img.shields.io/github/license/liu-zhengdong/obsidian-fast-note-sync?style=flat-square" alt="license"></a>
     <img src="https://img.shields.io/badge/Language-TypeScript-00ADD8?style=flat-square" alt="TypeScript">
 </p>
 
@@ -26,7 +25,7 @@ For users in Mainland China, it is recommended to use the Tencent `cnb.cool` mir
 </p>
 
 <p align="center">
-  Requires a standalone server: <a href="https://github.com/haierkeys/fast-note-sync-service">Fast Note Sync Service</a>
+  Requires a standalone server: <a href="https://github.com/liu-zhengdong/fast-note-sync-service">Fast Note Sync Service</a>
 </p>
 
 <div align="center">
@@ -75,19 +74,6 @@ We are continuously improving, and the following are future development plans:
 
 > **If you have improvement suggestions or new ideas, feel free to share them with us by submitting an issue — we will carefully evaluate and adopt suitable suggestions.**
 
-## 💖 Sponsorship & Support
-
-- If you find this plugin very useful and would like it to continue development, please support us in the following ways. Thank you for supporting open-source software:
-
-  | Ko-fi *Non-China Region*                                                                         |    | WeChat Pay *China Region*                      |
-  |--------------------------------------------------------------------------------------------------|----|------------------------------------------------|
-  | [<img src="/docs/images/kofi.png" alt="BuyMeACoffee" height="150">](https://ko-fi.com/haierkeys) | or | <img src="/docs/images/wxds.png" height="150"> |
-
-- Supported List:
-  - <a href="https://github.com/haierkeys/fast-note-sync-service/blob/master/docs/Support.en.md">Support.en.md</a>
-  - <a href="https://cnb.cool/haierkeys/fast-note-sync-service/-/blob/master/docs/Support.en.md">Support.en.md (cnb.cool Mirror)</a>
-
-
 ## 🚀 Quick Start
 
 **Step 1: Get the Plugin**
@@ -97,12 +83,11 @@ We are continuously improving, and the following are future development plans:
 
 **Step 2: Authorize Sync**
 
-1. Access the Web interface of your deployed **[Fast Note Sync Service](https://github.com/haierkeys/fast-note-sync-service)**.
+1. Access the Web interface of your deployed **[Fast Note Sync Service](https://github.com/liu-zhengdong/fast-note-sync-service)**.
 2. Select **"Note Vaults"** from the left navigation bar.
 3. Click **"One-click Authorization for Obsidian"**. The system will automatically wake up Obsidian and complete the transfer of authorization information. Of course, you can also manually copy the authorization information into the plugin.
 
 ## 📦 Server Deployment
 
 For backend service settings, please refer to:
-- <a href="https://github.com/haierkeys/fast-note-sync-service">Fast Note Sync Service</a>
-- <a href="https://cnb.cool/haierkeys/fast-note-sync-service">Fast Note Sync Service (cnb.cool Mirror)</a>
+- <a href="https://github.com/liu-zhengdong/fast-note-sync-service">Fast Note Sync Service</a>

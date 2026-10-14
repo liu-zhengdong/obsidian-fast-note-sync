@@ -56,8 +56,7 @@ flowchart LR
 
 | 文档 | 在哪 | 给谁 | 活的 / 冻结 | 谁维护 |
 |---|---|---|---|---|
-| 项目介绍 | [README.md](../../README.md)，以及 [简中](../README.zh-CN.md) · [繁中](../README.zh-TW.md) · [日](../README.ja.md) · [韩](../README.ko.md) | 用户 | 活的 | 上游 |
-| 赞助名单 | [Support.zh-CN.md](../Support.zh-CN.md) | 用户 | 活的 | 上游 |
+| 项目介绍 | [README.md](../../README.md)，以及 [简中](../README.zh-CN.md) · [繁中](../README.zh-TW.md) · [日](../README.ja.md) · [韩](../README.ko.md) | 用户 | 活的 | 我 |
 | 同步协议 | [websocket_sync_protocol.md](../websocket_sync_protocol.md)、[setting_clear_api.md](../setting_clear_api.md) | 开发者 | 活的 | 我 |
 | 历史版本接口 | [note_history.md](../note_history.md) | 开发者 | 活的 | 上游 |
 | 整套系统 | [服务端仓库的 atlas](../../../fast-note-sync-service/docs/atlas/README.md) | 开发者 | 活的 | 我 |
