@@ -2,6 +2,7 @@ import { TFile, TAbstractFile, normalizePath } from "obsidian";
 
 import { ReceiveMessage, ReceiveMtimeMessage, ReceivePathMessage, SyncEndData } from "../utils/types";
 import { hashContent, hashContentAsync, dump, dumpError, isPathExcluded, getSafeCtime, vaultDelete, checkAndNotifyCaseConflict, getPluginDir } from "../utils/helpers";
+import { onRemoteDescendantRemoved, classifyRemoteFolderModify } from "./folder_deletion";
 import { SyncLogManager } from "./sync_log_manager";
 import type FastSync from "../../main";
 
@@ -298,6 +299,10 @@ export const receiveNoteSyncModify = async function (data: ReceiveMessage, plugi
           await plugin.app.vault.modify(file, data.content, { ...(data.ctime > 0 && { ctime: data.ctime }), ...(data.mtime > 0 && { mtime: data.mtime }) })
         } else {
           const folder = normalizedPath.split("/").slice(0, -1).join("/")
+          if (folder && classifyRemoteFolderModify(plugin, folder, data.lastTime) === "ignore") {
+            dump(`Skip note create under deleted folder: ${normalizedPath}`)
+            return
+          }
           if (folder != "") {
             const dirExists = plugin.app.vault.getFolderByPath(folder)
             if (dirExists == null) {
@@ -507,6 +512,7 @@ export const receiveNoteSyncDelete = async function (data: ReceiveMessage, plugi
           }, 500);
         }
       }
+      await onRemoteDescendantRemoved(plugin, normalizedPath)
     }, { maxRetries: 5, retryInterval: 100 });
   } catch (e) {
     dumpError(`[FastSync] Failed to receiveNoteSyncDelete: ${normalizedPath}`, e);

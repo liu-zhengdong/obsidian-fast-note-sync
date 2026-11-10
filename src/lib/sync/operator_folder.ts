@@ -1,8 +1,11 @@
 import { TFolder, normalizePath } from "obsidian";
 
 import { SyncEndData, FolderSyncRenameMessage } from "../utils/types";
-import { hashContent, dump, dumpError, isFolderSyncPathExcluded, waitForFolderEmpty, vaultDelete, checkAndNotifyCaseConflict } from "../utils/helpers";
+import { hashContent, dump, dumpError, isFolderSyncPathExcluded, isPathExcluded, vaultDelete, checkAndNotifyCaseConflict } from "../utils/helpers";
 import { SyncLogManager } from "./sync_log_manager";
+import { applyRemoteFolderDelete, classifyRemoteFolderModify, clearFolderDeletionState, planLocalFolderTreeDelete } from "./folder_deletion";
+import { noteDeleteByPath } from "./operator_note";
+import { fileDeleteByPath } from "./operator_file";
 import type FastSync from "../../main";
 
 
@@ -13,6 +16,8 @@ export const folderModify = async function (folder: TFolder, plugin: FastSync, e
     if (plugin.settings.syncEnabled == false || plugin.settings.readonlySyncEnabled) return
     if (eventEnter && plugin.isIgnoredFile(folder.path)) return
     if (isFolderSyncPathExcluded(folder.path, plugin)) return
+    // 用户又把目录建回来了，取消挂着的远端删除记忆，允许重新上传
+    clearFolderDeletionState(plugin, folder.path)
 
     await plugin.lockManager.withLock(folder.path, async () => {
         plugin.addIgnoredFile(folder.path)
@@ -47,29 +52,29 @@ export const folderDelete = async function (folder: TFolder, plugin: FastSync, e
         return
     }
 
-    await plugin.lockManager.withLock(folder.path, async () => {
-        plugin.addIgnoredFile(folder.path)
-        try {
-            const data = {
-                vault: plugin.settings.vault,
-                path: folder.path,
-                pathHash: hashContent(folder.path),
-            }
-            void plugin.websocket.SendMessage("FolderDelete", data, undefined, () => {
-                plugin.folderSnapshotManager.removeFolder(folder.path)
-            })
-            dump(`Folder delete send`, folder.path)
-        } finally {
-            plugin.removeIgnoredFile(folder.path)
-        }
-    }, { maxRetries: 3, retryInterval: 50 });
+    await emitLocalFolderTreeDelete(folder.path, plugin)
 }
 
 /**
- * 按路径字符串发送文件夹删除消息（用于无法获取 TFolder 对象的场景，如 rename 后旧路径已不存在）
- * Send folder delete message by path string (for scenarios where TFolder object is unavailable, e.g., old path after rename)
+ * 按已跟踪的快照和哈希，把一棵本地目录的删除发完。深的路径在前，根目录在最后。
+ * 服务端 FolderDelete 只标记这一层，子笔记、附件和子目录仍要走各自原来的删除消息。
  */
-export const folderDeleteByPath = async function (folderPath: string, plugin: FastSync) {
+async function emitLocalFolderTreeDelete(root: string, plugin: FastSync): Promise<void> {
+    const folderPaths = (plugin.folderSnapshotManager?.getAllPaths() ?? []).filter((candidate) => !isFolderSyncPathExcluded(candidate, plugin))
+    const filePaths = (plugin.fileHashManager?.getAllPaths() ?? []).filter((candidate) => !isPathExcluded(candidate, plugin))
+    const ops = planLocalFolderTreeDelete(root, folderPaths, filePaths)
+    for (const op of ops) {
+        try {
+            if (op.kind === "note") await noteDeleteByPath(op.path, plugin)
+            else if (op.kind === "file") await fileDeleteByPath(op.path, plugin)
+            else await sendFolderDeleteMessage(op.path, plugin)
+        } catch (error) {
+            dumpError(`[FastSync] Failed to send folder-tree delete: ${op.path}`, error)
+        }
+    }
+}
+
+async function sendFolderDeleteMessage(folderPath: string, plugin: FastSync): Promise<void> {
     if (plugin.settings.syncEnabled == false || plugin.settings.readonlySyncEnabled) return
     if (isFolderSyncPathExcluded(folderPath, plugin)) return
     if (plugin.lastSyncPathDeleted.has(folderPath)) return
@@ -83,13 +88,29 @@ export const folderDeleteByPath = async function (folderPath: string, plugin: Fa
                 pathHash: hashContent(folderPath),
             }
             void plugin.websocket.SendMessage("FolderDelete", data, undefined, () => {
-                plugin.folderSnapshotManager.removeFolder(folderPath)
+                // 离线删除开着时留下快照，下一轮 delFolders 才能补发没送到的删除。
+                // 关掉时没有 delFolders，发出去就忘掉，避免 missingFolders 把目录从服务端要回来。
+                if (!plugin.settings.offlineDeleteSyncEnabled) {
+                    plugin.folderSnapshotManager.removeFolder(folderPath)
+                }
             })
-            dump('Folder delete by path send', folderPath)
+            dump(`Folder delete send`, folderPath)
         } finally {
             plugin.removeIgnoredFile(folderPath)
         }
     }, { maxRetries: 3, retryInterval: 50 });
+}
+
+/**
+ * 按路径字符串发送文件夹删除消息（用于无法获取 TFolder 对象的场景，如 rename 后旧路径已不存在）
+ * Send folder delete message by path string (for scenarios where TFolder object is unavailable, e.g., old path after rename)
+ */
+export const folderDeleteByPath = async function (folderPath: string, plugin: FastSync) {
+    if (plugin.settings.syncEnabled == false || plugin.settings.readonlySyncEnabled) return
+    if (isFolderSyncPathExcluded(folderPath, plugin)) return
+    if (plugin.lastSyncPathDeleted.has(folderPath)) return
+
+    await emitLocalFolderTreeDelete(folderPath, plugin)
 }
 
 /**
@@ -161,11 +182,17 @@ export const receiveFolderSyncModify = async function (data: { path: string, mti
     dump(`Receive folder modify:`, data.path, data.pathHash)
 
     const normalizedPath = normalizePath(data.path)
+    let ignoredStaleModify = false
 
     try {
         await plugin.lockManager.withLock(normalizedPath, async () => {
             plugin.addIgnoredFile(normalizedPath)
             try {
+                if (classifyRemoteFolderModify(plugin, normalizedPath, data.lastTime) === "ignore") {
+                    ignoredStaleModify = true
+                    dump(`Ignore stale folder modify after delete: ${normalizedPath}`)
+                    return
+                }
                 const existingFolder = plugin.app.vault.getAbstractFileByPath(normalizedPath)
                 if (!existingFolder) {
                     try {
@@ -178,6 +205,7 @@ export const receiveFolderSyncModify = async function (data: { path: string, mti
                         }
                     }
                 }
+                clearFolderDeletionState(plugin, normalizedPath)
                 plugin.folderSnapshotManager.setFolderMtime(normalizedPath, data.mtime || Date.now())
             } finally {
                 window.setTimeout(() => {
@@ -194,7 +222,7 @@ export const receiveFolderSyncModify = async function (data: { path: string, mti
     } finally {
         // 实时更新同步时间戳，与 note 端保持一致
         // Update sync timestamp in real time, consistent with note side
-        if (data.lastTime && data.lastTime > Number(plugin.localStorageManager.getMetadata("lastFolderSyncTime"))) {
+        if (!ignoredStaleModify && data.lastTime && data.lastTime > Number(plugin.localStorageManager.getMetadata("lastFolderSyncTime"))) {
             plugin.localStorageManager.setMetadata("lastFolderSyncTime", data.lastTime)
         }
         plugin.recordSyncCompleted('folder', data.pageIndex)
@@ -210,49 +238,18 @@ export const receiveFolderSyncDelete = async function (data: { path: string, las
         plugin.recordSyncCompleted('folder', data.pageIndex)
         return
     }
-    dump(`Receive folder delete:`, data.path, data.pathHash)
-
     const normalizedPath = normalizePath(data.path)
+    dump(`Receive folder delete:`, normalizedPath, data.pathHash)
 
     try {
-        await plugin.lockManager.withLock(normalizedPath, async () => {
-            const folder = plugin.app.vault.getAbstractFileByPath(normalizedPath)
-            if (folder instanceof TFolder) {
-                plugin.addIgnoredFile(normalizedPath)
-                try {
-                    // 必须检测并等到 目录里的所有文件数量 为 0 之后再执行
-                    const isEmpty = await waitForFolderEmpty(normalizedPath, plugin);
-                    if (!isEmpty) {
-                        // 超时后目录仍非空（可能有文件未下载完或用户新建了文件），放弃本次删除，
-                        // 避免强制递归删除误删用户数据；等待下一轮同步重新判定
-                        // Folder still non-empty after timeout (e.g. pending downloads or new user files);
-                        // skip the delete instead of force-recursing, wait for next sync round
-                        dump(`[FastSync] Folder not empty after wait, skip delete: ${normalizedPath}`);
-                        SyncLogManager.getInstance().addLog('receive', 'FolderDeleteSkipped', `目录非空，跳过删除，等待下轮同步: ${normalizedPath}`, 'cancelled', data.path);
-                        return
-                    }
-                    // 记录待删除路径
-                    plugin.lastSyncPathDeleted.add(normalizedPath)
-                    await vaultDelete(plugin.app.vault, folder, true)
-                    plugin.folderSnapshotManager.removeFolder(normalizedPath)
-                } finally {
-                    window.setTimeout(() => {
-                        plugin.removeIgnoredFile(normalizedPath)
-                        plugin.lastSyncPathDeleted.delete(normalizedPath)
-                    }, 500);
-                }
-            }
-        }, { maxRetries: 10, retryInterval: 200 });
+        // 非空就挂起，等子项自己的删除把目录腾空后再删；ENOENT 视为已经达成。
+        // 不在这里推进 lastFolderSyncTime，避免一次跳过把删除水位线抬过、服务端不再重发。
+        await applyRemoteFolderDelete(plugin, { path: normalizedPath, lastTime: data.lastTime })
     } catch (e) {
-        dumpError(`[FastSync] Failed to receiveFolderSyncDelete: ${normalizedPath}`, e);
+        dumpError(`[FastSync] Failed to receiveFolderSyncDelete: ${data.path}`, e);
         SyncLogManager.getInstance().addLog('receive', 'FolderDelete', e instanceof Error ? e.message : String(e), 'error', data.path);
         plugin.folderSyncTasks.failed++
     } finally {
-        // 实时更新同步时间戳，与 note 端保持一致
-        // Update sync timestamp in real time, consistent with note side
-        if (data.lastTime && data.lastTime > Number(plugin.localStorageManager.getMetadata("lastFolderSyncTime"))) {
-            plugin.localStorageManager.setMetadata("lastFolderSyncTime", data.lastTime)
-        }
         plugin.recordSyncCompleted('folder', data.pageIndex)
     }
 }

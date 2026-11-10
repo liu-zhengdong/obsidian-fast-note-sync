@@ -508,6 +508,7 @@
   "ui.conflict.delete_conflict_copy": "921bc8dc9e8bc544f1988c1f0d0c1113",
   "ui.conflict.original_missing": "c86ca4df53ff88f2a6c40aaec909153f",
   "ui.conflict.diff_too_large": "45a6b14a2e38892d07de7728b0e1fa45",
+  "ui.conflict.diff_skipped": "1cd620cacac7efb9bf366c7fd6ac2333",
   "ui.conflict.action_failed": "60b4a1b1a316963ab908a8a25f82060f",
   "setting.sync.strategy_manual": "5d30ddd4ef68288de49fc7b8d2849318",
   "ui.menu.conflicts": "e4de4db94e1d601a37174a99eb8fbbcd",

@@ -1,6 +1,7 @@
 import { TFolder } from "obsidian";
 
 import { dump, isFolderSyncPathExcluded, debounce, LocalStateFileMirror } from "../utils/helpers";
+import { shouldRetainMissingFolderSnapshot } from "../sync/folder_deletion";
 import type FastSync from "../../main";
 
 // 对账延迟：初始化后等待若干秒再比对，避开插件刚加载时的启动开销高峰
@@ -121,8 +122,14 @@ export class FolderSnapshotManager {
                 if (!this.snapshotMap.has(path)) toAdd.push(path);
             }
             const toRemove: string[] = [];
+            const retainMissing = shouldRetainMissingFolderSnapshot(this.plugin.settings.offlineDeleteSyncEnabled);
             for (const path of this.snapshotMap.keys()) {
-                if (!vaultFolderPaths.has(path)) toRemove.push(path);
+                if (isFolderSyncPathExcluded(path, this.plugin)) {
+                    toRemove.push(path);
+                    continue;
+                }
+                // 本地已经没有、但快照还记着的目录，是还没上报的删除。开着离线删除时留到扫描的 delFolders。
+                if (!vaultFolderPaths.has(path) && !retainMissing) toRemove.push(path);
             }
 
             if (toAdd.length === 0 && toRemove.length === 0) {
