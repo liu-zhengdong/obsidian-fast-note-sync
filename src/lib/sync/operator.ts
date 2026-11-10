@@ -6,6 +6,7 @@ import { receiveConfigSyncModify, receiveConfigUpload, receiveConfigSyncMtime, r
 import { receiveNoteSyncModify, receiveNoteUpload, receiveNoteSyncMtime, receiveNoteSyncDelete, receiveNoteSyncEnd, receiveNoteSyncRename, receiveNoteModifyAck, receiveNoteRenameAck, receiveNoteDeleteAck } from "./operator_note";
 import { SyncMode, SnapFile, SnapFolder, SyncEndData, PathHashFile, NoteSyncData, FileSyncData, ConfigSyncData, FolderSyncData } from "../utils/types";
 import { receiveFolderSyncModify, receiveFolderSyncDelete, receiveFolderSyncRename, receiveFolderSyncEnd } from "./operator_folder";
+import { shouldOmitFolderFromUpload } from "./folder_deletion";
 import { FileCloudPreview } from "../storage/file_cloud_preview";
 import { SyncLogManager } from "./sync_log_manager";
 import * as WSAction from "./websocket_action";
@@ -786,6 +787,8 @@ export const handleSync = async function (plugin: FastSync, isLoadLastTime: bool
           if (file instanceof TFolder) {
             if (file.path === "/") continue;
             if (isFolderSyncPathExcluded(file.path, plugin)) continue;
+            // 挂起或已落地的远端删除不要再报成「本地还有这个目录」，否则服务端会把它恢复并推回来
+            if (shouldOmitFolderFromUpload(plugin, file.path)) continue;
             let mtime = plugin.folderSnapshotManager.getMtime(file.path) || Date.now();
             if (isLoadLastTime && mtime < Number(plugin.localStorageManager.getMetadata("lastFolderSyncTime")) && plugin.folderSnapshotManager.getMtime(file.path) !== undefined) continue;
             folders.push({

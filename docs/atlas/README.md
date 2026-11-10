@@ -1,7 +1,7 @@
 ---
 kind: part
 up: ../../../fast-note-sync-service/docs/atlas/README.md
-verified: 2026-10-14 @ 1bfb406
+verified: 2026-11-10
 ---
 # Fast Note Sync 插件：新人导览
 
@@ -47,6 +47,7 @@ flowchart LR
 ## 坑
 
 - **插件自己写文件也会触发文件事件**。→ 不处理的话，收到的改动会被当成本地改动再传回服务端，来回循环。→ 写盘前把路径加进忽略列表，写完再移除；新增写盘的地方都要这样做。
+- **远端目录删除和子文件删除会乱序到达，而且服务端的 FolderDelete 不连带子项**。→ 目录还非空就放弃并抬高同步水位，空目录会留在本地，下一轮扫描再把它报成「还在」，服务端用 UpdateOrCreate 把已删除目录恢复并推回来。→ 接收删除收口在 [folder_deletion.ts](../../src/lib/sync/folder_deletion.ts)：非空就挂起，等子项删除后再删；ENOENT 当已经完成；权限错误记失败；未同步文件挡住整棵目录。快照对账在开启离线删除时保留「本地已消失」的目录，留给下一轮 `delFolders`。
 - **离线太久的设备一上线就上传，可能把别处早已删除的笔记带回来**。→ 服务端的删除记录只保留 90 天。→ 插件有离线保护，离线超过 90 天时先拦下问用户。90 天写死在 [operator.ts](../../src/lib/sync/operator.ts)，不读服务端配置。用户取消后，下一轮不能刷新"上次同步成功时间"，否则保护失效。修过一次，见提交 14062d4。
 - **切回 Obsidian 时会同时触发 focus 和 visibilitychange 两个事件**。→ 不去抖的话一次切换跑两轮同步。→ 重连有去抖，见提交 8a5f7df。
 - **`styles.css` 是由 `src/styles.scss` 编译出来的**。→ 直接改 `styles.css`，下次编译就丢。→ 样式改 `src/styles.scss`。

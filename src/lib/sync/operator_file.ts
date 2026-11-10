@@ -2,6 +2,7 @@ import { TFile, TAbstractFile, normalizePath, Platform } from "obsidian";
 
 import { ReceiveFileSyncUpdateMessage, FileUploadMessage, FileSyncChunkDownloadMessage, FileDownloadSession, ReceiveMtimeMessage, ReceivePathMessage, SyncEndData } from "../utils/types";
 import { hashContent, hashArrayBuffer, getPluginDir, dump, dumpError, sleep, isPathExcluded, getSafeCtime, isLargeBinarySyncRisk, describeBinarySyncLimit, showSyncNotice, checkAndNotifyCaseConflict, logMemorySnapshot, hashFileAsync, vaultDelete } from "../utils/helpers";
+import { onRemoteDescendantRemoved, classifyRemoteFolderModify } from "./folder_deletion";
 import { FileCloudPreview } from "../storage/file_cloud_preview";
 import { SyncLogManager } from "./sync_log_manager";
 import { HttpApiService } from "../api/http_api_service";
@@ -858,6 +859,7 @@ export const receiveFileSyncDelete = async function (data: ReceivePathMessage, p
         }, 500);
       }
     }
+    await onRemoteDescendantRemoved(plugin, normalizedPath)
   }, { maxRetries: 5, retryInterval: 100 }).catch(e => {
     dumpError(`[FastSync] Failed to receiveFileSyncDelete: ${normalizedPath}`, e);
     SyncLogManager.getInstance().addLog('receive', 'FileDelete', e instanceof Error ? e.message : String(e), 'error', data.path);
@@ -1379,6 +1381,10 @@ const handleFileChunkDownloadComplete = async function (session: FileDownloadSes
           await plugin.app.vault.modifyBinary(file, completeFile.buffer, { ...(session.ctime > 0 && { ctime: session.ctime }), ...(session.mtime > 0 && { mtime: session.mtime }) })
         } else {
           const folder = normalizedPath.split("/").slice(0, -1).join("/")
+          if (folder && classifyRemoteFolderModify(plugin, folder, session.lastTime || session.mtime) === "ignore") {
+            dump(`Skip file create under deleted folder: ${normalizedPath}`)
+            return
+          }
           if (folder != "") {
             const dirExists = plugin.app.vault.getFolderByPath(folder)
             if (dirExists == null) {
