@@ -16,6 +16,7 @@
     "test:mirror": "node tests/file-mirror-restore.test.mjs",
     "test:vault-name": "node tests/vault-name-setting.test.mjs",
     "test:folder-deletion": "node tests/folder-deletion.test.mjs",
+    "test:conflict-i18n": "node tests/conflict-diff-skipped-i18n.test.mjs",
     "ver": "node ./scripts/update-version.js",
     "dist": "npx tsx scripts/copy-dist.ts",
     "translate": "node scripts/translate-i18n.mjs --model Qwen/Qwen3.6-35B-A3B",
